@@ -1,15 +1,26 @@
 #include "mandelbrot.hpp"
 
-static void             DrawMandelbrotAvx (sf::Image &image, float offset_x, float offset_y, float scale);
-static void             DrawMandelbrot    (sf::Image &image, float offset_x, float offset_y, float scale);
+static void             DrawMandelbrotAvx (float offset_x, float offset_y, float scale, sf::Color* pixels_array);
+static void             DrawMandelbrot    (float offset_x, float offset_y, float scale, sf::Color* pixels_array);
 static inline int       CmpVector         (__m256 vector_1, __m256 vector_2, __m256i* iterations_vector);
 static inline sf::Text* CreateTextSprite  (sf::Font &font);
+static void             CheckPerformance  (float offset_x, float offset_y, float scale, sf::Color* pixels_array);
 
 void StartDrawing ()
 {
+    uint8_t* pixels_array = (uint8_t*) calloc (HEIGHT * WIDTH, sizeof (uint32_t));
+
     float offset_x = 0;
     float offset_y = 0;
     float scale    = 0.005f;
+
+    sf::Image image = {};
+    image.create (WIDTH, HEIGHT, sf::Color::Black);
+
+    #ifdef CHECK_PERFORMANCE
+        CheckPerformance (offset_x, offset_y, scale, (sf::Color*) pixels_array);
+        return;
+    #endif
 
     sf::RenderWindow window (sf::VideoMode (WIDTH, HEIGHT), "Mandelbrot");
 
@@ -17,9 +28,6 @@ void StartDrawing ()
     font.loadFromFile("SEASRN__.ttf");
 
     sf::Text* text = CreateTextSprite (font);
-
-    sf::Image image = {};
-    image.create (WIDTH, HEIGHT, sf::Color::Black);
 
     sf::Texture texture = {};
     texture.loadFromImage (image);
@@ -56,9 +64,9 @@ void StartDrawing ()
         clock.restart ();
 
         #ifdef AVX
-            DrawMandelbrotAvx (image, offset_x, offset_y, scale);
+            DrawMandelbrotAvx (offset_x, offset_y, scale, (sf::Color*) pixels_array);
         #else
-            DrawMandelbrot (image, offset_x, offset_y, scale);
+            DrawMandelbrot (offset_x, offset_y, scale, (sf::Color*) pixels_array);
         #endif
 
         sf::Time elapsed_time = clock.getElapsedTime ();
@@ -67,18 +75,21 @@ void StartDrawing ()
         sprintf (buffer, "FPS: %.2f\n", 1/elapsed_time.asSeconds());
         text->setString(buffer);
 
-        texture.update (image);
+        texture.update (pixels_array, WIDTH, HEIGHT, 0, 0);
         window.clear ();
         window.draw (sprite);
         window.draw (*text);
         window.display ();
     }
 
+    free (pixels_array);
     delete (text);
 }
 
-static void DrawMandelbrotAvx (sf::Image &image, float offset_x, float offset_y, float scale)
+static void DrawMandelbrotAvx (float offset_x, float offset_y, float scale, sf::Color* pixels_array)
 {
+    int pixels_cnt = 0;
+
     float center_x = WIDTH  / 2 + offset_x;
     float center_y = HEIGHT / 2 + offset_y;
 
@@ -115,8 +126,8 @@ static void DrawMandelbrotAvx (sf::Image &image, float offset_x, float offset_y,
             uint32_t* iterations_array = (uint32_t*) (&iterations_vector);
             for (int offset = 0; offset < VECTOR_SIZE; ++offset)
             {
-                if (iterations_array[offset] % 2 == 1) image.setPixel (cur_x + offset, cur_y, sf::Color::White);
-                else image.setPixel (cur_x + offset, cur_y, sf::Color::Black);
+                if (iterations_array[offset] % 2 == 1) pixels_array[pixels_cnt++] = sf::Color::White;
+                else pixels_array[pixels_cnt++] = sf::Color::Black;
             }
         }
     }
@@ -130,8 +141,10 @@ static inline int CmpVector (__m256 vector_1, __m256 vector_2, __m256i* iteratio
    return _mm256_movemask_ps (res);
 }
 
-static void DrawMandelbrot (sf::Image &image, float offset_x, float offset_y, float scale)
+static void DrawMandelbrot (float offset_x, float offset_y, float scale, sf::Color* pixels_array)
 {
+    int pixels_cnt = 0;
+
     float center_x = WIDTH  / 2 + offset_x;
     float center_y = HEIGHT / 2 + offset_y;
 
@@ -157,8 +170,8 @@ static void DrawMandelbrot (sf::Image &image, float offset_x, float offset_y, fl
                 y = xy + xy + c_im;             // Z_n = (Z_{n-1})^2 + C_0
             }
 
-            if (i % 2 == 1) image.setPixel (cur_x, cur_y, sf::Color::White);
-            else image.setPixel (cur_x, cur_y, sf::Color::Black);
+            if (i % 2 == 1) pixels_array[pixels_cnt++] = sf::Color::White;
+            else pixels_array[pixels_cnt++] = sf::Color::Black;
         }
     }
 }
@@ -173,4 +186,28 @@ static inline sf::Text* CreateTextSprite (sf::Font &font)
     text->setCharacterSize (20);
 
     return text;
+}
+
+static void CheckPerformance (float offset_x, float offset_y, float scale, sf::Color* pixels_array)
+{
+    float total_time = 0;
+
+    sf::Clock clock = {};
+    sf::Time elapsed_time = {};
+    for (int i = 0; i < PERFORMANCE_ITERATIONS; i++)
+    {
+        clock.restart ();
+
+        #ifdef AVX
+            DrawMandelbrotAvx (offset_x, offset_y, scale, pixels_array);
+        #else
+            DrawMandelbrot (offset_x, offset_y, scale, pixels_array);
+        #endif
+
+        elapsed_time = clock.getElapsedTime ();
+        total_time += elapsed_time.asSeconds();
+    }
+
+    total_time /= PERFORMANCE_ITERATIONS;
+    printf ("TOTAL TIME = %f \n", total_time);
 }
