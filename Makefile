@@ -15,7 +15,7 @@ $(TARGET) : $(OBJ)
 
 $(OBJ_FOLDER)%.o : $(SRC_FOLDER)%.cpp
 	@mkdir -p $(@D)
-	@$(CXX) $(IFLAGS) $(CFLAGS) -c $< -o $@
+	@$(CXX) -mavx2 $(IFLAGS) $(CFLAGS) -c $< -o $@
 
 clean:
 	rm $(TARGET) $(OBJ)
