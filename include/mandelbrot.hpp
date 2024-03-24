@@ -1,7 +1,7 @@
 #ifndef MANDELBROT_HPP
 #define MANDELBROT_HPP
 
-// #define AVX
+#define AVX
 
 #include <SFML/Graphics.hpp>
 #include <cassert>
