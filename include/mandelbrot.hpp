@@ -2,7 +2,7 @@
 #define MANDELBROT_HPP
 
 #define AVX
-#define CHECK_PERFORMANCE
+// #define CHECK_PERFORMANCE
 
 #include <SFML/Graphics.hpp>
 #include <cassert>

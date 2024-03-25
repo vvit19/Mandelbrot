@@ -1,10 +1,11 @@
 #include "mandelbrot.hpp"
 
-static void             DrawMandelbrotAvx (float offset_x, float offset_y, float scale, sf::Color* pixels_array);
-static void             DrawMandelbrot    (float offset_x, float offset_y, float scale, sf::Color* pixels_array);
-static inline int       CmpVector         (__m256 vector_1, __m256 vector_2, __m256i* iterations_vector);
-static inline sf::Text* CreateTextSprite  (sf::Font &font);
-static void             CheckPerformance  (float offset_x, float offset_y, float scale, sf::Color* pixels_array);
+static void             DrawMandelbrotAvx  (float offset_x, float offset_y, float scale, sf::Color* pixels_array);
+static void             DrawMandelbrot     (float offset_x, float offset_y, float scale, sf::Color* pixels_array);
+static inline int       CmpVector          (__m256 vector_1, __m256 vector_2, __m256i* iterations_vector);
+static inline sf::Text* CreateTextSprite   (sf::Font &font);
+static inline void      DrawMandelbrotWrap (float offset_x, float offset_y, float scale, sf::Color* pixels_array);
+static void             CheckPerformance   (float offset_x, float offset_y, float scale, sf::Color* pixels_array);
 
 void StartDrawing ()
 {
@@ -13,9 +14,6 @@ void StartDrawing ()
     float offset_x = 0;
     float offset_y = 0;
     float scale    = 0.005f;
-
-    sf::Image image = {};
-    image.create (WIDTH, HEIGHT, sf::Color::Black);
 
     #ifdef CHECK_PERFORMANCE
         CheckPerformance (offset_x, offset_y, scale, (sf::Color*) pixels_array);
@@ -28,6 +26,9 @@ void StartDrawing ()
     font.loadFromFile("SEASRN__.ttf");
 
     sf::Text* text = CreateTextSprite (font);
+
+    sf::Image image = {};
+    image.create (WIDTH, HEIGHT, sf::Color::White);
 
     sf::Texture texture = {};
     texture.loadFromImage (image);
@@ -63,11 +64,7 @@ void StartDrawing ()
 
         clock.restart ();
 
-        #ifdef AVX
-            DrawMandelbrotAvx (offset_x, offset_y, scale, (sf::Color*) pixels_array);
-        #else
-            DrawMandelbrot (offset_x, offset_y, scale, (sf::Color*) pixels_array);
-        #endif
+        DrawMandelbrotWrap (offset_x, offset_y, scale, (sf::Color*) pixels_array);
 
         sf::Time elapsed_time = clock.getElapsedTime ();
 
@@ -84,6 +81,15 @@ void StartDrawing ()
 
     free (pixels_array);
     delete (text);
+}
+
+static inline void DrawMandelbrotWrap (float offset_x, float offset_y, float scale, sf::Color* pixels_array)
+{
+    #ifdef AVX
+        DrawMandelbrotAvx (offset_x, offset_y, scale, pixels_array);
+    #else
+        DrawMandelbrot (offset_x, offset_y, scale, pixels_array);
+    #endif
 }
 
 static void DrawMandelbrotAvx (float offset_x, float offset_y, float scale, sf::Color* pixels_array)
@@ -179,10 +185,10 @@ static void DrawMandelbrot (float offset_x, float offset_y, float scale, sf::Col
 static inline sf::Text* CreateTextSprite (sf::Font &font)
 {
     sf::Text* text = new sf::Text;
-    text->setFont(font);
-    text->setFillColor(sf::Color::Red);
-    text->setCharacterSize(48);
-    text->setPosition(50, 50);
+    text->setFont (font);
+    text->setFillColor (sf::Color::Red);
+    text->setCharacterSize (48);
+    text->setPosition (50, 50);
     text->setCharacterSize (20);
 
     return text;
@@ -198,11 +204,7 @@ static void CheckPerformance (float offset_x, float offset_y, float scale, sf::C
     {
         clock.restart ();
 
-        #ifdef AVX
-            DrawMandelbrotAvx (offset_x, offset_y, scale, pixels_array);
-        #else
-            DrawMandelbrot (offset_x, offset_y, scale, pixels_array);
-        #endif
+        DrawMandelbrotWrap (offset_x, offset_y, scale, pixels_array);
 
         elapsed_time = clock.getElapsedTime ();
         total_time += elapsed_time.asSeconds();
