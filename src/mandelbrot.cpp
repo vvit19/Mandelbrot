@@ -1,11 +1,22 @@
 #include "mandelbrot.hpp"
 
-static void             DrawMandelbrotAvx  (float offset_x, float offset_y, float scale, sf::Color* pixels_array);
-static void             DrawMandelbrot     (float offset_x, float offset_y, float scale, sf::Color* pixels_array);
-static inline int       CmpVector          (__m256 vector_1, __m256 vector_2, __m256i* iterations_vector);
-static inline sf::Text* CreateTextSprite   (sf::Font &font);
-static inline void      DrawMandelbrotWrap (float offset_x, float offset_y, float scale, sf::Color* pixels_array);
-static void             CheckPerformance   (float offset_x, float offset_y, float scale, sf::Color* pixels_array);
+static void             DrawMandelbrotAvx
+                        (float offset_x, float offset_y, float scale, sf::Color* pixels_array);
+
+static void             DrawMandelbrot
+                        (float offset_x, float offset_y, float scale, sf::Color* pixels_array);
+
+static inline int       CmpVector
+                        (__m256 vector_1, __m256 vector_2, __m256i* iterations_vector);
+
+static inline sf::Text* CreateTextSprite
+                        (sf::Font &font);
+
+static inline void      ChooseDrawMandelbrotMode
+                        (float offset_x, float offset_y, float scale, sf::Color* pixels_array);
+
+static void             CheckPerformance
+                        (float offset_x, float offset_y, float scale, sf::Color* pixels_array);
 
 void StartDrawing ()
 {
@@ -64,7 +75,7 @@ void StartDrawing ()
 
         clock.restart ();
 
-        DrawMandelbrotWrap (offset_x, offset_y, scale, (sf::Color*) pixels_array);
+        ChooseDrawMandelbrotMode (offset_x, offset_y, scale, (sf::Color*) pixels_array);
 
         sf::Time elapsed_time = clock.getElapsedTime ();
 
@@ -83,7 +94,7 @@ void StartDrawing ()
     delete (text);
 }
 
-static inline void DrawMandelbrotWrap (float offset_x, float offset_y, float scale, sf::Color* pixels_array)
+static inline void ChooseDrawMandelbrotMode (float offset_x, float offset_y, float scale, sf::Color* pixels_array)
 {
     #ifdef AVX
         DrawMandelbrotAvx (offset_x, offset_y, scale, pixels_array);
@@ -126,7 +137,7 @@ static void DrawMandelbrotAvx (float offset_x, float offset_y, float scale, sf::
                 if (!CmpVector (vector_cur_radius, max_radius_vector, &iterations_vector)) break;
 
                 vector_x = _mm256_add_ps (x_pow_vector, _mm256_sub_ps (c_real_vector, y_pow_vector));
-                vector_y = _mm256_add_ps (c_im_vector,  _mm256_add_ps (xy_vector, xy_vector));  // Z_n = (Z_{n-1})^2 + C_0
+                vector_y = _mm256_add_ps (c_im_vector,  _mm256_add_ps (xy_vector, xy_vector));
             }
 
             uint32_t* iterations_array = (uint32_t*) (&iterations_vector);
@@ -204,7 +215,7 @@ static void CheckPerformance (float offset_x, float offset_y, float scale, sf::C
     {
         clock.restart ();
 
-        DrawMandelbrotWrap (offset_x, offset_y, scale, pixels_array);
+        ChooseDrawMandelbrotMode (offset_x, offset_y, scale, pixels_array);
 
         elapsed_time = clock.getElapsedTime ();
         total_time += elapsed_time.asSeconds();
