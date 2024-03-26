@@ -1,5 +1,7 @@
 #include "mandelbrot.hpp"
 
+// ------------------------------------------------------------------------------------------------
+
 static void             DrawMandelbrotAvx
                         (float offset_x, float offset_y, float scale, sf::Color* pixels_array);
 
@@ -15,8 +17,13 @@ static inline sf::Text* CreateTextSprite
 static inline void      ChooseDrawMandelbrotMode
                         (float offset_x, float offset_y, float scale, sf::Color* pixels_array);
 
-static void             CheckPerformance
+static void             CheckPerformanceClock
                         (float offset_x, float offset_y, float scale, sf::Color* pixels_array);
+
+static void             CheckPerformanceRdtsc
+                        (float offset_x, float offset_y, float scale, sf::Color* pixels_array);
+
+// ------------------------------------------------------------------------------------------------
 
 void StartDrawing ()
 {
@@ -27,9 +34,14 @@ void StartDrawing ()
     float scale    = 0.005f;
 
     #ifdef CHECK_PERFORMANCE
-        CheckPerformance (offset_x, offset_y, scale, (sf::Color*) pixels_array);
-        return;
-    #endif
+
+        #ifdef RDTSC_CHECK
+            CheckPerformanceRdtsc (offset_x, offset_y, scale, (sf::Color*) pixels_array);
+        #else
+            CheckPerformanceClock (offset_x, offset_y, scale, (sf::Color*) pixels_array);
+        #endif
+
+    #else
 
     sf::RenderWindow window (sf::VideoMode (WIDTH, HEIGHT), "Mandelbrot");
 
@@ -92,6 +104,8 @@ void StartDrawing ()
 
     free (pixels_array);
     delete (text);
+
+    #endif // CHECK_PERFORMANCE
 }
 
 static inline void ChooseDrawMandelbrotMode (float offset_x, float offset_y, float scale, sf::Color* pixels_array)
@@ -144,7 +158,7 @@ static void DrawMandelbrotAvx (float offset_x, float offset_y, float scale, sf::
             for (int offset = 0; offset < VECTOR_SIZE; ++offset)
             {
                 if (iterations_array[offset] % 2 == 1) pixels_array[pixels_cnt++] = sf::Color::White;
-                else pixels_array[pixels_cnt++] = sf::Color::Black;
+                else                                   pixels_array[pixels_cnt++] = sf::Color::Black;
             }
         }
     }
@@ -205,7 +219,7 @@ static inline sf::Text* CreateTextSprite (sf::Font &font)
     return text;
 }
 
-static void CheckPerformance (float offset_x, float offset_y, float scale, sf::Color* pixels_array)
+static void CheckPerformanceClock (float offset_x, float offset_y, float scale, sf::Color* pixels_array)
 {
     float total_time = 0;
 
@@ -222,5 +236,22 @@ static void CheckPerformance (float offset_x, float offset_y, float scale, sf::C
     }
 
     total_time /= PERFORMANCE_ITERATIONS;
-    printf ("TOTAL TIME = %f \n", total_time);
+    printf ("TOTAL TIME = %f seconds \n", total_time);
+}
+
+static void CheckPerformanceRdtsc (float offset_x, float offset_y, float scale, sf::Color* pixels_array)
+{
+    uint64_t total_time = 0;
+
+    for (int i = 0; i < PERFORMANCE_ITERATIONS; i++)
+    {
+        uint64_t tsc_before = __rdtsc ();
+        ChooseDrawMandelbrotMode (offset_x, offset_y, scale, pixels_array);
+        uint64_t tsc_after  = __rdtsc ();
+
+        total_time += tsc_after - tsc_before;
+    }
+
+    total_time /= PERFORMANCE_ITERATIONS;
+    printf ("TOTAL CPU CYCLES = %ld \n", total_time);
 }
