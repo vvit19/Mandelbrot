@@ -113,7 +113,7 @@ $&#957 = 1/k = 1/0,4333 = 2,308$ ГГц.
 
 Интересный факт: текущее значение тактовой частоты из настроек Windows также равно 2,3 ГГц:
 
-<img src= "https://github.com/vvit19/Mandelbrot/blob/master/img/nu.png" width="500px"/>
+<img src= "https://github.com/vvit19/Mandelbrot/blob/master/img/nusettings.png" width="500px"/>
 
 Подводя итоги имеем, что показатели ```clock.getElapsedTime``` линейно зависят от показателей ```rdtsc``` и имеют небольшую погрешность, а следовательно, SFML можно применять для расчета времени в данной задаче.
 
